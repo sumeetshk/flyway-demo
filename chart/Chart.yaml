@@ -1,0 +1,11 @@
+apiVersion: v2
+name: flyway
+description: A chart for demo flyway
+version: 0.1.0 # This is the chart version.
+home: https://github.com/sumeetshk/flyway-demo
+sources:
+- https://github.com/sumeetshk/flyway-demo
+
+maintainers:
+- name: Sumeet Shukla
+  email: sumeet.k.shukla@gmail.com

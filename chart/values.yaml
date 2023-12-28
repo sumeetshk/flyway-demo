@@ -1,0 +1,6 @@
+image:
+  repository: 457710302499.dkr.ecr.eu-west-2.amazonaws.com/order-platform/demo-flyway
+  imagePullPolicy: Always
+  tag: latest
+
+secretPath: secret/data/sre/rds/demo/dev

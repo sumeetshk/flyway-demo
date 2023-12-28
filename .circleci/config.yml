@@ -1,0 +1,81 @@
+version: 2.1
+jobs:
+
+  ##
+  # Build Docker image
+  ##
+  build:
+    docker:
+    - image: sumeetshk/aws-kubectl
+    steps:
+    - checkout
+    - setup_remote_docker:
+        docker_layer_caching: true
+    - run:
+        name: Build Docker image
+        command: |
+          export TAG=${CIRCLE_SHA1:0:7}
+          export IMG=$ECR_REPO/demo/demo-flyway
+          $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
+          docker build -t ${IMG}:${TAG} -t ${IMG}:latest .
+          docker push ${IMG} --all-tags
+
+  ##
+  # Deploy Helm chart
+  ##
+  deploy:
+    parameters:
+      values_file:
+        type: string
+        default: values.yaml
+    docker:
+    - image: sumeetshk/aws-kubectl
+    steps:
+    - checkout
+    - run:
+        name: Deploy Helm chart
+        working_directory: chart
+        command: |
+          export TAG=${CIRCLE_SHA1:0:7}
+          aws eks update-kubeconfig --name $EKS_CLUSTER --role-arn $EKS_ROLE_ARN
+          helm upgrade flyway . -n demo --install --atomic --set image.tag=${TAG} -f << parameters.values_file >>
+
+workflows:
+  build_deploy:
+    jobs:
+    - build:
+        context: demo-prod
+
+    # Deploy to QA if branch == "master"
+    - deploy:
+        name: deploy-qa
+        context: demo-qa
+        values_file: values-qa.yaml
+        requires:
+        - build
+        filters:
+          branches:
+            only:
+            - master
+
+    # Request approval before deploying to PROD
+    - approve:
+        type: approval
+        requires:
+        - deploy-qa
+        filters:
+          branches:
+            only:
+            - master
+
+    # Deploy to PROD if approved
+    - deploy:
+        name: deploy-prod
+        context: demo-prod
+        values_file: values-prod.yaml
+        requires:
+        - approve
+        filters:
+          branches:
+            only:
+            - master
